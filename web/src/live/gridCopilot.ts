@@ -1,9 +1,12 @@
 import type { Camera, Vehicle } from '../data'
+import { addAlert, listAlerts, parseAlertRequest, removeAlert } from './alerts'
 
 export interface CopilotAction {
-  type: 'SELECT_VEHICLE' | 'SELECT_CAMERA' | 'DEPLOY_ROADBLOCK' | 'RADIO_CALL' | 'FILTER' | 'PREDICT_VECTOR'
+  type: 'SELECT_VEHICLE' | 'SELECT_CAMERA' | 'DEPLOY_ROADBLOCK' | 'RADIO_CALL' | 'FILTER' | 'PREDICT_VECTOR' | 'SET_ALERT'
   target_id?: string
   camera_id?: string
+  /** SET_ALERT: a parsed alert rule (from live/alerts.ts) that actually watches live detections. */
+  rule?: import('./alerts').AlertRule
   params?: Record<string, any>
 }
 
@@ -61,6 +64,20 @@ export async function queryGridCopilot(
     if (res.ok) {
       const data = (await res.json()) as CopilotResponse
       if (data && data.reply) {
+        // Backend asked to arm an alert: parse its raw phrasing into a real watcher rule locally.
+        if (data.action?.type === 'SET_ALERT') {
+          const raw = (data.action.params?.alert_intent as string | undefined) || query
+          const parsed = parseAlertRequest(raw, { selectedGid: context.selectedGid, activeCameraId: context.activeCameraId })
+          if (parsed) {
+            const rule = addAlert(parsed)
+            data.action.rule = rule
+            data.reply = `Alert armed: ${rule.label}. The live detection engine will evaluate every frame and notify you the moment it matches.`
+          } else {
+            // Couldn't turn it into a concrete rule — say so honestly instead of pretending.
+            data.action = null
+            data.reply = 'I understood you want an alert, but not what to watch for. Try "alert me when a white SUV appears" or "watch for vehicles over 80 km/h".'
+          }
+        }
         return data
       }
     }
@@ -83,6 +100,50 @@ function clientSwarmReasoning(
   }
 ): CopilotResponse {
   const { vehicles, cameras, selectedGid, activeCameraId } = context
+
+  // Real alert management — actually creates/removes watcher rules, no theatre.
+  if (/(list|show|what).*(alert|watch)/.test(q) || q.trim() === 'alerts') {
+    const active = listAlerts()
+    return {
+      agent: 'Grid Supervisor',
+      agent_badge: 'GRID COPILOT',
+      reply: active.length
+        ? `${active.length} alert${active.length > 1 ? 's' : ''} active: ${active.map((r) => r.label).join('; ')}.`
+        : 'No alerts configured. Say e.g. "alert me when a white SUV appears" or "watch for vehicles over 80 km/h".',
+      action: null,
+      suggestions: active.length ? ['Clear all alerts'] : ['Alert me when a white SUV appears', 'Watch for vehicles over 80 km/h'],
+      trace: [
+        { agent: 'GRID SUPERVISOR', action_type: 'TOOL_CALL', tool_name: 'list_alerts', tool_result: `${active.length} active rule(s)`, thought: 'Read the live alert registry.', latency_ms: 6 },
+      ],
+    }
+  }
+  if (/(clear|remove|delete|stop).*(alert|watch)/.test(q)) {
+    const n = listAlerts().length
+    listAlerts().forEach((r) => removeAlert(r.id))
+    return {
+      agent: 'Grid Supervisor',
+      agent_badge: 'GRID COPILOT',
+      reply: n ? `Cleared ${n} alert${n > 1 ? 's' : ''}. The grid is no longer watching for them.` : 'No alerts were active.',
+      action: null,
+      suggestions: ['Alert me when a white SUV appears'],
+      trace: [{ agent: 'GRID SUPERVISOR', action_type: 'TOOL_CALL', tool_name: 'clear_alerts', tool_result: `removed ${n}`, thought: 'Removed all watcher rules.', latency_ms: 5 }],
+    }
+  }
+  const alertReq = parseAlertRequest(originalQuery, { selectedGid, activeCameraId })
+  if (alertReq) {
+    const rule = addAlert(alertReq)
+    return {
+      agent: 'Tactical Dispatch',
+      agent_badge: 'GRID COPILOT',
+      reply: `Alert armed: ${rule.label}. The live detection engine will evaluate every frame and notify you the moment it matches.`,
+      action: { type: 'SET_ALERT', rule },
+      suggestions: ['Show active alerts', 'Clear all alerts'],
+      trace: [
+        { agent: 'GRID SUPERVISOR', action_type: 'INTENT_ROUTING', thought: `Parsed alert intent into a concrete watcher rule.`, latency_ms: 9 },
+        { agent: 'TACTICAL DISPATCH', action_type: 'TOOL_CALL', tool_name: 'add_alert', tool_args: { kind: rule.kind }, tool_result: rule.label, thought: 'Registered rule with the live-frame evaluator.', latency_ms: 7 },
+      ],
+    }
+  }
 
   // Check current camera status
   if (q.includes('this camera') || q.includes('current camera') || q.includes('active camera')) {

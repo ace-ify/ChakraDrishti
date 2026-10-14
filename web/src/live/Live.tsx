@@ -14,6 +14,7 @@ import { VoiceTelemetryAgent } from './voiceAgent'
 import { computeInterceptionPrediction, type InterceptionPrediction } from './interception'
 import { tacticalAudio } from './tacticalAudio'
 import type { CopilotAction } from './gridCopilot'
+import { evaluateFrame, listAlerts, onAlert, removeAlert, type AlertEvent, type AlertRule } from './alerts'
 
 const FULL = 'calc(100vh - 73px)'
 
@@ -117,6 +118,10 @@ export default function Live({ theme = 'dark' }: { theme?: 'dark' | 'light' }) {
   const [liveVehicle, setLiveVehicle] = useState<Vehicle | null>(null)
   const lastInferTime = useRef(0)
 
+  // Real alert engine: armed rules + fired events + transient toast
+  const [armedAlerts, setArmedAlerts] = useState<AlertRule[]>([])
+  const [alertToast, setAlertToast] = useState<AlertEvent | null>(null)
+
   // Voice Telemetry Agent State
   const [isVoiceListening, setIsVoiceListening] = useState(false)
   const voiceAgentRef = useRef<VoiceTelemetryAgent | null>(null)
@@ -138,6 +143,24 @@ export default function Live({ theme = 'dark' }: { theme?: 'dark' | 'light' }) {
     setCameras([...newCams, ...dynamicCams])
     setCamId(targetCamId || undefined)
   }
+
+  // Real alert engine: subscribe to fired alerts → toast + sound, and keep armed list in sync.
+  useEffect(() => {
+    setArmedAlerts(listAlerts())
+    const off = onAlert((e) => {
+      setAlertToast(e)
+      tacticalAudio.playCordonAlert()
+      setArmedAlerts(listAlerts())
+    })
+    return off
+  }, [])
+
+  // Auto-dismiss the alert toast after a few seconds.
+  useEffect(() => {
+    if (!alertToast) return
+    const t = setTimeout(() => setAlertToast(null), 6000)
+    return () => clearTimeout(t)
+  }, [alertToast])
 
   // Voice Telemetry Agent Setup
   useEffect(() => {
@@ -206,6 +229,7 @@ export default function Live({ theme = 'dark' }: { theme?: 'dark' | 'light' }) {
       if (res && res.detections) {
         setLiveDetections(res.detections)
         setDets(res.detections.map((d) => [d.id, d.box[0], d.box[1], d.box[2], d.box[3], d.conf, 2] as Det))
+        evaluateFrame(cam.id, res.detections)  // run armed alert watchers against this frame
       }
     } catch (err) {
       // Backend detection busy or offline
@@ -297,6 +321,10 @@ export default function Live({ theme = 'dark' }: { theme?: 'dark' | 'light' }) {
       toggleCordon(true)
     } else if (action.type === 'RADIO_CALL') {
       setDispatchModalOpen(true)
+    } else if (action.type === 'SET_ALERT') {
+      // Rule was already registered by the copilot; just reflect it in the UI.
+      setArmedAlerts(listAlerts())
+      tacticalAudio.playTargetLock()
     }
   }
 
@@ -1098,6 +1126,94 @@ export default function Live({ theme = 'dark' }: { theme?: 'dark' | 'light' }) {
           <span className="blink" style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'var(--rose)', marginRight: 6 }} />
           {cameras.length} CAMERAS ONLINE · {Object.keys(vehicles).length} VEHICLES INDEXED
         </div>
+
+        {/* Armed alert watchers (real, evaluated per live frame) */}
+        {armedAlerts.length > 0 && (
+          <div
+            className="neu-floating"
+            style={{
+              position: 'absolute',
+              left: 16,
+              bottom: 40,
+              zIndex: 30,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+              padding: '8px 10px',
+              background: 'var(--panel)',
+              border: 'var(--neu-border)',
+              borderRadius: 10,
+              boxShadow: 'var(--neu-shadow-floating)',
+              maxWidth: 320,
+            }}
+          >
+            <div className="mono" style={{ fontSize: 9, fontWeight: 800, color: 'var(--amber)', letterSpacing: 0.5 }}>
+              🔔 {armedAlerts.length} ALERT{armedAlerts.length > 1 ? 'S' : ''} ARMED
+            </div>
+            {armedAlerts.map((r) => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <span className="mono" style={{ fontSize: 10, color: 'var(--text)' }}>{r.label}</span>
+                <button
+                  onClick={() => { removeAlert(r.id); setArmedAlerts(listAlerts()) }}
+                  className="mono"
+                  title="Disarm alert"
+                  style={{ background: 'none', border: 'none', color: 'var(--dim)', cursor: 'pointer', fontSize: 11, padding: '0 2px' }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Alert fired toast */}
+        {alertToast && (
+          <div
+            className="neu-floating"
+            role="alert"
+            style={{
+              position: 'absolute',
+              top: 64,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 60,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '12px 16px',
+              background: 'rgba(245, 158, 11, 0.12)',
+              border: '1px solid var(--amber)',
+              borderRadius: 12,
+              boxShadow: 'var(--neu-shadow-floating), 0 0 24px rgba(245,158,11,0.3)',
+              backdropFilter: 'blur(10px)',
+              animation: 'slideInRight 0.22s ease',
+            }}
+          >
+            <span style={{ fontSize: 20 }}>🚨</span>
+            <div>
+              <div className="mono" style={{ fontSize: 11, fontWeight: 800, color: 'var(--amber)' }}>
+                ALERT: {alertToast.label}
+              </div>
+              <div className="mono" style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>
+                {alertToast.detail} · cam {alertToast.camId}
+              </div>
+            </div>
+            <button
+              onClick={() => { open(alertToast.camId); setAlertToast(null) }}
+              className="btn mono"
+              style={{ fontSize: 10, padding: '4px 10px', color: 'var(--amber)', borderColor: 'var(--amber)' }}
+            >
+              VIEW
+            </button>
+            <button
+              onClick={() => setAlertToast(null)}
+              className="mono"
+              style={{ background: 'none', border: 'none', color: 'var(--dim)', cursor: 'pointer', fontSize: 12 }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
         {/* Floating Copilot Action Button (Round Circular FAB) on the Right */}
         <button
           onClick={() => {

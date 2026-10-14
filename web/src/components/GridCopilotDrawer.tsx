@@ -374,31 +374,22 @@ export default function GridCopilotDrawer({
                       }}
                     >
                       {m.trace.map((step, sIdx) => {
-                        let cleanThought = step.thought
-                        if (step.action_type === 'TOOL_CALL') {
-                          if (step.tool_name?.includes('reid')) {
-                            cleanThought = 'Scanned 18 camera feeds; correlated visual vehicle embeddings.'
-                          } else if (step.tool_name?.includes('kinematic')) {
-                            cleanThought = 'Calculated vehicle velocity, heading, and downstream arrival time.'
-                          } else if (step.tool_name?.includes('roadblock')) {
-                            cleanThought = 'Prepared roadblock perimeter coordinates across downstream nodes.'
-                          } else if (step.tool_name?.includes('vhf') || step.tool_name?.includes('radio')) {
-                            cleanThought = 'Established encrypted VHF radio link with patrol unit.'
-                          } else if (step.tool_name?.includes('camera') || step.tool_name?.includes('pole')) {
-                            cleanThought = 'Resolved camera coordinates on 3D spatial grid.'
-                          }
-                        } else if (step.action_type === 'GIS_DISPATCH') {
-                          cleanThought = 'Updated 3D map viewport and locked target follow-cam.'
-                        } else if (step.action_type === 'AGENT_HANDOFF') {
-                          cleanThought = 'Shared trajectory analysis with Tactical Dispatch.'
-                        }
-
+                        // Show the real reasoning: the actual tool + its result, not a canned rewrite.
+                        const toolLine =
+                          step.action_type === 'TOOL_CALL' && step.tool_name
+                            ? `${step.tool_name}${step.tool_result ? ` → ${step.tool_result}` : ''}`
+                            : null
                         return (
                           <div key={sIdx} style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                             <span style={{ color: 'var(--teal)', fontSize: 7, flexShrink: 0 }}>●</span>
                             <span>
                               <span style={{ color: 'var(--text)', fontWeight: 600 }}>{step.agent}: </span>
-                              {cleanThought}
+                              {step.thought}
+                              {toolLine && (
+                                <span className="mono" style={{ display: 'block', marginTop: 2, fontSize: 9, color: 'var(--dim)' }}>
+                                  {toolLine}
+                                </span>
+                              )}
                             </span>
                           </div>
                         )
@@ -435,6 +426,8 @@ export default function GridCopilotDrawer({
                       ? 'Activated perimeter roadblocks'
                       : m.action.type === 'RADIO_CALL'
                       ? 'Connected tactical radio channel'
+                      : m.action.type === 'SET_ALERT'
+                      ? `Alert armed: ${m.action.rule?.label ?? 'watcher live'}`
                       : m.action.type.replace('_', ' ')}
                   </span>
                 </div>

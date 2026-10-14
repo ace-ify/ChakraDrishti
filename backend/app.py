@@ -726,12 +726,18 @@ Return strictly valid JSON:
     "GIS Dispatcher: Action executed ..."
   ],
   "action": {{
-    "type": "SELECT_VEHICLE" | "SELECT_CAMERA" | "DEPLOY_ROADBLOCK" | "RADIO_CALL",
+    "type": "SELECT_VEHICLE" | "SELECT_CAMERA" | "DEPLOY_ROADBLOCK" | "RADIO_CALL" | "SET_ALERT",
     "camera_id": "valid camera id or null",
-    "target_id": "valid vehicle target id or null"
+    "target_id": "valid vehicle target id or null",
+    "params": {{"alert_intent": "the user's raw alert phrasing, only when type is SET_ALERT"}}
   }} or null,
   "suggestions": ["3 short follow-up action suggestions"]
 }}
+
+Rules:
+- SET_ALERT when the user asks to be alerted / notified / to watch / monitor for something (a colour or body type, a speed, or the locked target re-appearing). Put the user's raw phrasing in params.alert_intent.
+- Only suggest follow-ups that the system can actually execute (find a vehicle, select a camera, deploy roadblocks, radio, set/list/clear an alert). Never suggest vague monitoring like "set up a heat map" or "schedule a review".
+- If you cannot take a real action, set action to null and say what you CAN do.
 """
 
             groq_payload = json.dumps({
