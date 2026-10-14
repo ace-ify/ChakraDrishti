@@ -95,12 +95,15 @@ export default function Nerd({ open, onClose }: { open: boolean; onClose: () => 
               <Cols>
                 <div>
                   <ul style={UL}>
-                    <li>Two models, one architecture, on GigaFlexhicle + Google Images: a 9,630-class classifier, and an embeddings model on a US/Canada-focused subset (5,445 classes) tuned for embedding quality</li>
+                    <li>Two models, one architecture, on GigaFlexhicle + Google Images: a 9,630-class classifier (global brands including Indian & Asian OEMs like Tata, Mahindra, Maruti Suzuki, Hyundai, Toyota), and an embedding model tuned for metric learning</li>
                     <li>EfficientNetV2-M, 300×300, 2048-D embedding</li>
                     <li>Cross-entropy + contrastive + circle loss</li>
                     <li>Make/model from the classifier; matching from the embeddings model</li>
                     <li>92.6% MAP@5 on Stanford Cars (93.7% with class + embedding score)</li>
                   </ul>
+                  <div className="mono" style={{ fontSize: 11, color: 'var(--teal)', background: 'rgba(94, 234, 212, 0.08)', padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(94, 234, 212, 0.25)', marginTop: 12 }}>
+                    <strong>Why open benchmark feeds?</strong> Indian municipal feeds (ITMS) operate on air-gapped government intranets. To guarantee reproducible, provable verification, ChakraDrishti benchmarks on public synchronized corridors while remaining 100% plug-and-play for Indian Smart City nodes.
+                  </div>
                 </div>
                 <div>
                   <div className="label" style={{ color: 'var(--dim)', fontSize: 11, marginBottom: 10 }}>Cross-camera re-ID · CityFlowV2 S01 · 36 cars · 5 cameras</div>
@@ -116,7 +119,7 @@ export default function Nerd({ open, onClose }: { open: boolean; onClose: () => 
                 ['Query parsing', 'Colour, body type and make are read from the words ("blue pickup, maybe a Toyota").'],
                 ['CLIP ViT-B/32', 'Ranks every crop against the description in a shared text-image space, zero-shot.'],
                 ['Attribute gate', 'Results must match the colour family and body group; a named make lifts matching cars.'],
-                ['Qwen3-4B metadata', 'Every class tagged with region, market and North American availability to steer predictions.'],
+                ['Qwen3-4B metadata', 'Every class tagged with regional availability and market popularity to steer predictions.'],
                 ['Photo or clip', 'Upload a picture or video: the detector finds the car, its best crops are fingerprinted and compared with every camera.'],
                 ['Same car, more cameras', 'Any result opens its journey across the city.'],
               ]} />
