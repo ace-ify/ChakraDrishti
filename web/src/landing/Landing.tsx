@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { asset, loadCameras, loadLanding, loadVehicles, type LandingData, type Vehicle } from '../data'
+import { loadLanding, loadVehicles, type LandingData, type Vehicle } from '../data'
 import AnyCamera from './AnyCamera'
 import CostSpeed from './CostSpeed'
 import Problem from './Problem'
@@ -32,39 +32,54 @@ export default function Landing() {
   )
 }
 
-// Hero backdrop: one frame per camera, cycling through angles and conditions.
-const HERO_CAMS = ['knight-bridge', 'broadway-arbutus', 'hwy1-boundary', 'kingsway-nanaimo', 'georgia-denman', 'cambie-king-edward-e', 'granville-broadway', 'marine-main']
-const SLIDE_MS = 6000
+
 
 function Hero() {
-  const [posters, setPosters] = useState<string[]>([])
-  const [i, setI] = useState(0)
-  useEffect(() => {
-    loadCameras().then((cams) => {
-      const byId = new Map(cams.map((c) => [c.id, c]))
-      setPosters(HERO_CAMS.map((id) => byId.get(id)).filter(Boolean).map((c) => asset(c!.poster)))
-    })
-  }, [])
-  useEffect(() => {
-    if (posters.length < 2) return
-    const t = setInterval(() => setI((x) => (x + 1) % posters.length), SLIDE_MS)
-    return () => clearInterval(t)
-  }, [posters.length])
-
   return (
-    <section style={{ position: 'relative', minHeight: 'calc(100vh - 72px)', overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
-      {posters.map((src, k) => (
-        <img
-          key={src}
-          src={src}
-          alt=""
-          className={k === i ? 'hero-slide on' : 'hero-slide'}
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', filter: 'saturate(.6)' }}
-        />
-      ))}
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(5,7,11,.35), #05070b 92%)' }} />
-      <div className="grid-bg" style={{ position: 'absolute', inset: 0, backgroundSize: '64px 64px' }} />
-      <div className="wrap" style={{ position: 'relative' }}>
+    <section
+      className="hero-section-dark"
+      style={{
+        position: 'relative',
+        minHeight: 'calc(100vh - 72px)',
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+        background: '#05070b',
+      }}
+    >
+      <spline-viewer
+        url="https://prod.spline.design/X0i9RfFsErGrNHbU/scene.splinecode"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          transform: 'scale(1.4)',
+          transformOrigin: 'center',
+          pointerEvents: 'auto',
+          zIndex: 1,
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(180deg, rgba(5,7,11,.35), #05070b 92%)',
+          pointerEvents: 'none',
+          zIndex: 2,
+        }}
+      />
+      <div
+        className="grid-bg"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundSize: '64px 64px',
+          pointerEvents: 'none',
+          zIndex: 3,
+        }}
+      />
+      <div className="wrap" style={{ position: 'relative', zIndex: 4, pointerEvents: 'none' }}>
         <div className="label" style={{ color: 'var(--teal)' }}>Vehicle re-identification across cameras</div>
         <h1 style={{ fontSize: 'clamp(48px, 8vw, 92px)', lineHeight: 0.98, letterSpacing: -3, margin: '20px 0 22px' }}>
           See every car.<br /><span style={{ color: 'var(--teal)' }}>Trace any one.</span>
@@ -73,7 +88,7 @@ function Hero() {
           ChakraDrishti turns the cameras a city already has into a searchable memory of every vehicle, found by appearance,
           by description, or by a witness’s voice. No licence plate needed.
         </p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, pointerEvents: 'auto' }}>
           <a className="btn btn-primary" href="#/live">Open the live map</a>
           <a className="btn" href="#problem">Scroll the story ↓</a>
         </div>

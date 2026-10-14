@@ -37,20 +37,6 @@ export default function Nav({ page, nerd, onNerd, theme, onToggleTheme }: Props)
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.5, display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ color: 'var(--amber)' }}>चक्र</span><span>DRISHTI</span>
-            <span
-              style={{
-                fontSize: 9,
-                background: isLight ? 'rgba(217, 119, 6, 0.15)' : 'rgba(245, 158, 11, 0.2)',
-                border: '1px solid var(--amber)',
-                color: 'var(--amber)',
-                padding: '1px 5px',
-                borderRadius: 4,
-                fontWeight: 700,
-                letterSpacing: 0.5,
-              }}
-            >
-              3D AI OPS
-            </span>
           </span>
           <span className="mono" style={{ fontSize: 9, color: 'var(--dim)', letterSpacing: 1 }}>
             AUTONOMOUS URBAN RE-ID
@@ -64,7 +50,7 @@ export default function Nav({ page, nerd, onNerd, theme, onToggleTheme }: Props)
           href="#/"
           style={page === 'landing' ? { borderColor: 'var(--teal)', color: 'var(--teal)' } : undefined}
         >
-          Story
+          Home
         </a>
         <a
           className="btn"
@@ -72,7 +58,7 @@ export default function Nav({ page, nerd, onNerd, theme, onToggleTheme }: Props)
           style={page === 'live' ? { borderColor: 'var(--teal)', color: 'var(--teal)' } : undefined}
         >
           <span className="blink" style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--rose)' }} />
-          Live map
+          Console
         </a>
 
         {/* Sleek Minimalist Neumorphic Theme Toggle */}
@@ -111,13 +97,15 @@ export default function Nav({ page, nerd, onNerd, theme, onToggleTheme }: Props)
           className="btn mono"
           onClick={onNerd}
           aria-pressed={nerd}
+          aria-label={nerd ? 'Hide technical overview' : 'Under the hood — technical overview'}
+          title={nerd ? 'Hide technical overview' : 'Under the hood — models, datasets & metrics'}
           style={{
             fontSize: 13,
             borderColor: nerd ? 'var(--violet)' : undefined,
             color: nerd ? 'var(--violet)' : undefined,
           }}
         >
-          {'</>'} {nerd ? 'Hide' : 'Under the hood'}
+          {'</>'}
         </button>
       </nav>
     </header>
